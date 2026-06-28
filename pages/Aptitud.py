@@ -166,7 +166,7 @@ with colPanel:
         # ===========================================
         else:
 
-            st.header("🌱 Aptitud")
+            st.header("🌱 Informacion del Fragmento")
             st.success(f"📍 {fragmento['Nombre']}")
 
             st.divider()
