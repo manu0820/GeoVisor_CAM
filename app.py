@@ -13,7 +13,7 @@ ocultar_sidebar()
 st.title("🌱 GeoVisor CAM")
 
 st.write("""
-Bienvenido al GeoVisor del Centro Agroecológico Marengo.
+Bienvenido al GeoVisor del Centro Agropecuario Marengo.
 
 Seleccione un módulo.
 """)
