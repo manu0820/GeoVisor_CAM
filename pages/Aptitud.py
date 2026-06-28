@@ -111,7 +111,7 @@ with colPanel:
 
     if st.session_state.fragmento is None:
 
-        st.header("🌱 Aptitud")
+        st.header("🌱 Informacion del Fragmento")
         st.info("Haz clic sobre un fragmento del mapa.")
 
     else:
