@@ -24,7 +24,7 @@ def crear_mapa(centro):
     ).add_to(m)
 
     FloatImage(
-        "images/Rosa de los vientos fondo blanco.png"
+        "images/Rosa de los vientos fondo blanco.png",
         bottom=5,
         left=5
     ).add_to(m)
