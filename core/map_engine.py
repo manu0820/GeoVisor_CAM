@@ -25,8 +25,8 @@ def crear_mapa(centro):
 
     FloatImage(
         "https://raw.githubusercontent.com/manu0820/GeoVisor_CAM/main/images/rosa_vientos.png",
-        bottom=80,
-        left=80,
+        bottom=70,
+        left=78,
         width="200px"
     ).add_to(m)
 
