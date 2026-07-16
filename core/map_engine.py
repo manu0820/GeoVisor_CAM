@@ -24,7 +24,7 @@ def crear_mapa(centro):
     ).add_to(m)
 
     FloatImage(
-        "https://upload.wikimedia.org/wikipedia/commons/9/99/Compass_rose_simple.svg",
+        "images/Rosa de los vientos fondo blanco.png"
         bottom=5,
         left=5
     ).add_to(m)
