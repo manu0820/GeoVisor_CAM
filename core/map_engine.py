@@ -1,4 +1,5 @@
 import folium
+from folium.plugins import FloatImage
 from streamlit_folium import st_folium
 from config import COLOR_SUELOS, COLOR_APTITUD
 
@@ -20,6 +21,12 @@ def crear_mapa(centro):
         name="Esri World Imagery",
         overlay=False,
         control=False,
+    ).add_to(m)
+
+    FloatImage(
+        "https://upload.wikimedia.org/wikipedia/commons/9/99/Compass_rose_simple.svg",
+        bottom=5,
+        left=5
     ).add_to(m)
 
     return m
