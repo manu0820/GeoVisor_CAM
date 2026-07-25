@@ -1,11 +1,15 @@
 import streamlit as st
 
-from streamlit_geolocation import streamlit_geolocation
+from streamlit_js_eval import streamlit_js_eval
 
 from math import radians, sin, cos, sqrt, atan2
 
 from datetime import datetime
 
+
+# ============================================================
+# CONFIGURACIÓN DE LA PÁGINA
+# ============================================================
 
 st.set_page_config(
     page_title="Asistencia Ciclo II 2026B",
@@ -21,7 +25,7 @@ st.set_page_config(
 LATITUD_CAM = 4.681785
 LONGITUD_CAM = -74.216075
 
-# Radio máximo permitido para registrar asistencia
+# Radio máximo permitido
 RADIO_PERMITIDO = 100  # metros
 
 
@@ -32,8 +36,13 @@ RADIO_PERMITIDO = 100  # metros
 st.title("📋 Asistencia Ciclo II 2026B")
 
 
+st.write(
+    "Seleccione su cultivo y registre su asistencia."
+)
+
+
 # ============================================================
-# LISTA DE CULTIVOS
+# CULTIVOS
 # ============================================================
 
 cultivos = [
@@ -48,6 +57,11 @@ cultivos = [
     "🧅 Puerro",
     "🟠 Uchuva"
 ]
+
+
+# ============================================================
+# ESTUDIANTES
+# ============================================================
 
 estudiantes_por_cultivo = {
 
@@ -110,7 +124,7 @@ estudiantes_por_cultivo = {
         "Sergio Castellanos Bello",
         "Karen Daniela Pineda Aldana",
         "Damián Nicolás Piracún Farfán",
-        "Karen DAyana Gonzalés Prieto",
+        "Karen Dayana Gonzalés Prieto",
         "Brayan Stive Vanegas León"
     ],
 
@@ -145,21 +159,22 @@ estudiantes_por_cultivo = {
     ]
 }
 
+
 # ============================================================
-# INICIALIZAR VARIABLES DE SESIÓN
+# VARIABLES DE SESIÓN
 # ============================================================
 
 if "cultivo_seleccionado" not in st.session_state:
-    st.session_state["cultivo_seleccionado"] = None
+    st.session_state.cultivo_seleccionado = None
 
 if "estudiante_seleccionado" not in st.session_state:
-    st.session_state["estudiante_seleccionado"] = None
+    st.session_state.estudiante_seleccionado = None
 
-if "accion_seleccionada" not in st.session_state:
-    st.session_state["accion_seleccionada"] = None
+if "accion" not in st.session_state:
+    st.session_state.accion = None
 
-if "registro_exitoso" not in st.session_state:
-    st.session_state["registro_exitoso"] = False
+if "solicitar_gps" not in st.session_state:
+    st.session_state.solicitar_gps = False
 
 
 # ============================================================
@@ -168,7 +183,7 @@ if "registro_exitoso" not in st.session_state:
 
 def calcular_distancia(latitud, longitud):
 
-    R = 6371000  # Radio de la Tierra en metros
+    R = 6371000
 
     lat1 = radians(LATITUD_CAM)
     lat2 = radians(latitud)
@@ -199,10 +214,10 @@ def calcular_distancia(latitud, longitud):
 
 # ============================================================
 # PANTALLA 1
-# SELECCIÓN DEL CULTIVO
+# SELECCIONAR CULTIVO
 # ============================================================
 
-if st.session_state["cultivo_seleccionado"] is None:
+if st.session_state.cultivo_seleccionado is None:
 
     st.subheader("🌱 Seleccione su cultivo")
 
@@ -222,7 +237,7 @@ if st.session_state["cultivo_seleccionado"] is None:
                     key=f"cultivo_{i}"
                 ):
 
-                    st.session_state["cultivo_seleccionado"] = cultivo
+                    st.session_state.cultivo_seleccionado = cultivo
 
                     st.rerun()
 
@@ -236,19 +251,19 @@ if st.session_state["cultivo_seleccionado"] is None:
                     key=f"cultivo_{i}"
                 ):
 
-                    st.session_state["cultivo_seleccionado"] = cultivo
+                    st.session_state.cultivo_seleccionado = cultivo
 
                     st.rerun()
 
 
 # ============================================================
 # PANTALLA 2
-# SELECCIÓN DEL ESTUDIANTE
+# SELECCIONAR ESTUDIANTE
 # ============================================================
 
-elif st.session_state["estudiante_seleccionado"] is None:
+elif st.session_state.estudiante_seleccionado is None:
 
-    cultivo = st.session_state["cultivo_seleccionado"]
+    cultivo = st.session_state.cultivo_seleccionado
 
     st.subheader(
         f"{cultivo}"
@@ -270,7 +285,7 @@ elif st.session_state["estudiante_seleccionado"] is None:
             key=f"estudiante_{i}"
         ):
 
-            st.session_state["estudiante_seleccionado"] = estudiante
+            st.session_state.estudiante_seleccionado = estudiante
 
             st.rerun()
 
@@ -282,26 +297,22 @@ elif st.session_state["estudiante_seleccionado"] is None:
         use_container_width=True
     ):
 
-        st.session_state["cultivo_seleccionado"] = None
+        st.session_state.cultivo_seleccionado = None
 
         st.rerun()
 
 
 # ============================================================
 # PANTALLA 3
-# ESTUDIANTE + ENTRADA / SALIDA
+# ESTUDIANTE
 # ============================================================
 
 else:
 
-    cultivo = st.session_state["cultivo_seleccionado"]
+    cultivo = st.session_state.cultivo_seleccionado
 
-    estudiante = st.session_state["estudiante_seleccionado"]
+    estudiante = st.session_state.estudiante_seleccionado
 
-
-    # --------------------------------------------------------
-    # INFORMACIÓN DEL ESTUDIANTE
-    # --------------------------------------------------------
 
     st.subheader(
         f"👤 {estudiante}"
@@ -315,23 +326,20 @@ else:
 
 
     # ========================================================
-    # SI TODAVÍA NO SE HA PULSADO ENTRAR O SALIR
+    # BOTONES ENTRADA / SALIDA
     # ========================================================
 
-    if st.session_state["accion_seleccionada"] is None:
+    if not st.session_state.solicitar_gps:
 
         st.write(
             "Seleccione la acción que desea registrar:"
         )
 
-        st.markdown("")
-
-
         col1, col2 = st.columns(2)
 
 
         # ----------------------------------------------------
-        # BOTÓN ENTRAR
+        # ENTRADA
         # ----------------------------------------------------
 
         with col1:
@@ -341,13 +349,15 @@ else:
                 use_container_width=True
             ):
 
-                st.session_state["accion_seleccionada"] = "Entrada"
+                st.session_state.accion = "Entrada"
+
+                st.session_state.solicitar_gps = True
 
                 st.rerun()
 
 
         # ----------------------------------------------------
-        # BOTÓN SALIR
+        # SALIDA
         # ----------------------------------------------------
 
         with col2:
@@ -357,18 +367,20 @@ else:
                 use_container_width=True
             ):
 
-                st.session_state["accion_seleccionada"] = "Salida"
+                st.session_state.accion = "Salida"
+
+                st.session_state.solicitar_gps = True
 
                 st.rerun()
 
 
     # ========================================================
-    # OBTENER UBICACIÓN DESPUÉS DEL CLIC
+    # SOLICITAR GPS
     # ========================================================
 
     else:
 
-        accion = st.session_state["accion_seleccionada"]
+        accion = st.session_state.accion
 
 
         if accion == "Entrada":
@@ -385,151 +397,209 @@ else:
 
 
         st.info(
-            "📍 Verificando su ubicación..."
+            "📍 Obteniendo ubicación..."
         )
 
 
-        # ----------------------------------------------------
-        # SOLICITAR UBICACIÓN AL NAVEGADOR
-        # ----------------------------------------------------
+        # ====================================================
+        # JAVASCRIPT PARA OBTENER GPS
+        # ====================================================
 
-        ubicacion = streamlit_geolocation()
+        ubicacion = streamlit_js_eval(
+            js_expressions="""
+            new Promise((resolve, reject) => {
+
+                navigator.geolocation.getCurrentPosition(
+
+                    position => {
+
+                        resolve({
+
+                            latitude:
+                            position.coords.latitude,
+
+                            longitude:
+                            position.coords.longitude,
+
+                            accuracy:
+                            position.coords.accuracy
+
+                        });
+
+                    },
+
+                    error => {
+
+                        resolve({
+
+                            error:
+                            error.message
+
+                        });
+
+                    },
+
+                    {
+
+                        enableHighAccuracy: true,
+
+                        timeout: 10000,
+
+                        maximumAge: 0
+
+                    }
+
+                );
+
+            })
+            """,
+
+            key="obtener_gps"
+        )
 
 
         # ====================================================
-        # SI SE OBTUVO LA UBICACIÓN
+        # PROCESAR GPS
         # ====================================================
 
-        if ubicacion["latitude"] is not None:
-
-            latitud_actual = ubicacion["latitude"]
-
-            longitud_actual = ubicacion["longitude"]
+        if ubicacion is not None:
 
 
             # ------------------------------------------------
-            # CALCULAR DISTANCIA
+            # ERROR GPS
             # ------------------------------------------------
 
-            distancia = calcular_distancia(
-                latitud_actual,
-                longitud_actual
-            )
+            if "error" in ubicacion:
+
+                st.error(
+                    "❌ No fue posible obtener su ubicación."
+                )
+
+                st.write(
+                    ubicacion["error"]
+                )
 
 
             # ------------------------------------------------
-            # MOSTRAR DISTANCIA
+            # GPS CORRECTO
             # ------------------------------------------------
-
-            st.metric(
-                "Distancia al CAM",
-                f"{distancia:.1f} metros"
-            )
-
-
-            # =================================================
-            # UBICACIÓN DENTRO DEL RADIO
-            # =================================================
-
-            if distancia <= RADIO_PERMITIDO:
-
-                # Obtener fecha y hora actual
-                fecha_hora = datetime.now()
-
-                fecha = fecha_hora.strftime(
-                    "%d/%m/%Y"
-                )
-
-                hora = fecha_hora.strftime(
-                    "%H:%M:%S"
-                )
-
-
-                st.success(
-                    "🟢 Ubicación autorizada"
-                )
-
-
-                st.success(
-                    f"✅ {accion} registrada correctamente"
-                )
-
-
-                st.write(
-                    f"👤 **Estudiante:** {estudiante}"
-                )
-
-                st.write(
-                    f"🌱 **Cultivo:** {cultivo}"
-                )
-
-                st.write(
-                    f"📅 **Fecha:** {fecha}"
-                )
-
-                st.write(
-                    f"⏰ **Hora:** {hora}"
-                )
-
-
-                # Guardar temporalmente el registro
-                st.session_state["registro_exitoso"] = True
-
-
-            # =================================================
-            # UBICACIÓN FUERA DEL RADIO
-            # =================================================
 
             else:
 
-                st.error(
-                    "🔴 Ubicación no autorizada"
+                latitud = ubicacion["latitude"]
+
+                longitud = ubicacion["longitude"]
+
+                precision = ubicacion["accuracy"]
+
+
+                # --------------------------------------------
+                # CALCULAR DISTANCIA
+                # --------------------------------------------
+
+                distancia = calcular_distancia(
+                    latitud,
+                    longitud
                 )
+
+
+                st.metric(
+                    "Distancia al CAM",
+                    f"{distancia:.1f} metros"
+                )
+
 
                 st.write(
-                    f"Se encuentra a "
-                    f"**{distancia:.1f} metros** "
-                    f"del punto autorizado."
-                )
-
-                st.write(
-                    f"Debe encontrarse a menos de "
-                    f"**{RADIO_PERMITIDO} metros** "
-                    f"para registrar la asistencia."
+                    f"Precisión GPS: "
+                    f"{precision:.1f} metros"
                 )
 
 
-        # ====================================================
-        # NO SE OBTUVO UBICACIÓN
-        # ====================================================
+                # ============================================
+                # UBICACIÓN AUTORIZADA
+                # ============================================
 
-        else:
+                if distancia <= RADIO_PERMITIDO:
 
-            st.warning(
-                "⚠️ No fue posible obtener su ubicación."
-            )
 
-            st.write(
-                "Asegúrese de haber permitido el acceso "
-                "a la ubicación en su navegador."
-            )
+                    fecha_hora = datetime.now()
+
+
+                    st.success(
+                        "🟢 Ubicación autorizada"
+                    )
+
+
+                    st.success(
+                        f"✅ {accion} registrada correctamente"
+                    )
+
+
+                    st.write(
+                        f"👤 **Estudiante:** "
+                        f"{estudiante}"
+                    )
+
+
+                    st.write(
+                        f"🌱 **Cultivo:** "
+                        f"{cultivo}"
+                    )
+
+
+                    st.write(
+                        f"📅 **Fecha:** "
+                        f"{fecha_hora.strftime('%d/%m/%Y')}"
+                    )
+
+
+                    st.write(
+                        f"⏰ **Hora:** "
+                        f"{fecha_hora.strftime('%H:%M:%S')}"
+                    )
+
+
+                # ============================================
+                # UBICACIÓN NO AUTORIZADA
+                # ============================================
+
+                else:
+
+
+                    st.error(
+                        "🔴 Ubicación no autorizada"
+                    )
+
+
+                    st.write(
+                        f"Se encuentra a "
+                        f"**{distancia:.1f} metros** "
+                        f"del CAM."
+                    )
+
+
+                    st.write(
+                        f"El máximo permitido es "
+                        f"**{RADIO_PERMITIDO} metros**."
+                    )
 
 
     # ========================================================
-    # VOLVER A LISTA DE ESTUDIANTES
+    # VOLVER
     # ========================================================
 
     st.markdown("---")
+
 
     if st.button(
         "⬅️ Volver a lista de estudiantes",
         use_container_width=True
     ):
 
-        st.session_state["estudiante_seleccionado"] = None
+        st.session_state.estudiante_seleccionado = None
 
-        st.session_state["accion_seleccionada"] = None
+        st.session_state.accion = None
 
-        st.session_state["registro_exitoso"] = False
+        st.session_state.solicitar_gps = False
 
         st.rerun()
