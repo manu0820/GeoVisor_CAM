@@ -1,605 +1,448 @@
 import streamlit as st
-
-from streamlit_js_eval import streamlit_js_eval
-
-from math import radians, sin, cos, sqrt, atan2
-
-from datetime import datetime
+import requests
+import streamlit.components.v1 as components
+import json
+import time
 
 
 # ============================================================
-# CONFIGURACIÓN DE LA PÁGINA
+# CONFIGURACIÓN
 # ============================================================
 
 st.set_page_config(
-    page_title="Asistencia Ciclo II 2026B",
+    page_title="Asistencia CAM",
     page_icon="📋",
-    layout="wide"
+    layout="centered"
 )
 
 
 # ============================================================
-# CONFIGURACIÓN DEL CAM
+# URL DE GOOGLE APPS SCRIPT
 # ============================================================
 
-LATITUD_CAM = 4.681785
-LONGITUD_CAM = -74.216075
-
-# Radio máximo permitido
-RADIO_PERMITIDO = 100  # metros
-
-
-# ============================================================
-# TÍTULO
-# ============================================================
-
-st.title("📋 Asistencia Ciclo II 2026B")
-
-
-st.write(
-    "Seleccione su cultivo y registre su asistencia."
+APPS_SCRIPT_URL = (
+    "https://script.google.com/a/macros/unal.edu.co/s/"
+    "AKfycbxYBU1HUeNZgaLb9eZtnWEf8XkBKi9bikF7jvvIWGEBJY6gzjX1ddZdvDCHCHFNU7Tq/exec"
 )
 
 
 # ============================================================
-# CULTIVOS
+# OBTENER DEVICE ID PERSISTENTE
 # ============================================================
 
-cultivos = [
-    "🥬 Acelga",
-    "🌿 Alcachofa",
-    "🔵 Arándano",
-    "🌾 Avena",
-    "🌱 Bulbo",
-    "🥒 Calabacín",
-    "🌿 Espárrago",
-    "🌳 Feijoa",
-    "🧅 Puerro",
-    "🟠 Uchuva"
-]
+def obtener_device_id():
 
+    componente = components.html(
+        """
+        <script>
 
-# ============================================================
-# ESTUDIANTES
-# ============================================================
+        const STORAGE_KEY = "asistencia_cam_device_id";
 
-estudiantes_por_cultivo = {
+        let deviceId = localStorage.getItem(STORAGE_KEY);
 
-    "🥬 Acelga": [
-        "Nancy Ximena Carrero",
-        "Juan Esteban Huertas",
-        "Daniel Cortés",
-        "Gabriel Andres Guitierrez",
-        "Liliana Maria Zea",
-        "Paula Gabriela Riveros"
-    ],
+        if (!deviceId) {
 
-    "🌿 Alcachofa": [
-        "Daniela Castillo",
-        "Sergio Castellanos",
-        "Alejandro Rojas",
-        "Daniel Olivar",
-        "Jhon Gómez",
-        "jon Rodríguez"
-    ],
+            deviceId =
+                crypto.randomUUID();
 
-    "🔵 Arándano": [
-        "Angie Vanesa Lazo Sierra",
-        "Harvey Steeven Ramos Puentes",
-        "Sebastian Aparicio Guagua",
-        "Jhon Alez Esquivel Benavides",
-        "Alejandro Gil Cepeda",
-        "Gustavo Andrés Garzón Pasachoa"
-    ],
+            localStorage.setItem(
+                STORAGE_KEY,
+                deviceId
+            );
 
-    "🌾 Avena": [
-        "Ana Gabriela Rojas Gonzáles",
-        "Emma Natalia Muñoz Jiménez",
-        "Yuliana Henao Campuzano",
-        "Jesus DAvid Manzano",
-        "Daniel Alberto Robles Sanchez",
-        "Brayan Hair Recaman Montaño"
-    ],
+        }
 
-    "🌱 Bulbo": [
-        "Marcos Fuerte Martinez",
-        "Maria Paula Gonzales Urrego",
-        "Becky Ortiz Rivas",
-        "Cesar Augusto Ospino Nieto",
-        "Luisa Rojas Rincón",
-        "Stefany Julieth Torres Pinzón",
-        "Ana Maria Valero Parra"
-    ],
+        document.write(
+            '<div id="device_id">' +
+            deviceId +
+            '</div>'
+        );
 
-    "🥒 Calabacín": [
-        "Edna Valentina Acosta Romero",
-        "Juan Sebastian Camelo Garcia",
-        "Luis Fernando Gaitan Pinto",
-        "Sofia Molano Jara",
-        "Luis MArio Pardo Fontecha",
-        "David Felipe Robles Saavedra"
-    ],
-
-    "🌿 Espárrago": [
-        "Sergio Castellanos Bello",
-        "Karen Daniela Pineda Aldana",
-        "Damián Nicolás Piracún Farfán",
-        "Karen DAyana Gonzalés Prieto",
-        "Brayan Stive Vanegas León"
-    ],
-
-    "🌳 Feijoa": [
-        "Paula Andrea Rodríguez Mosquera",
-        "Danna Kendris Castañeda Montealegre",
-        "Juan Nicolás Aguilera Forero",
-        "Javier Stiven Chávez Muñoz",
-        "Jhon Ferney Derazo Fuelpaz",
-        "Manuel Ricardo Vargas Alejo",
-        "Darwin Alejandro Linares Cardenas"
-    ],
-
-    "🧅 Puerro": [
-        "Ardila Penagos Valentina Vanessa Alexandra",
-        "Cetina Díaz Juan Carlos",
-        "Daza Juan Sebastian",
-        "Reyes Junco Nicolás David",
-        "Sánchez Villegas Luisa Fernanda",
-        "Quevedo Viviana",
-        "Quintero Camacho Daniel Andrés"
-    ],
-
-    "🟠 Uchuva": [
-        "Angie Valentina Castillo Martín",
-        "Tomás Leonardo Casas",
-        "Andrés Felipe Aranguren",
-        "erónica Andrea Junco Trejos",
-        "Raúl Mateo Vanegas",
-        "Ingrid Tatiana Linares Anzola",
-        "Daniel Alejandro Sánchez González"
-    ]
-}
-
-
-# ============================================================
-# VARIABLES DE SESIÓN
-# ============================================================
-
-if "cultivo_seleccionado" not in st.session_state:
-    st.session_state.cultivo_seleccionado = None
-
-if "estudiante_seleccionado" not in st.session_state:
-    st.session_state.estudiante_seleccionado = None
-
-if "accion" not in st.session_state:
-    st.session_state.accion = None
-
-if "solicitar_gps" not in st.session_state:
-    st.session_state.solicitar_gps = False
-
-
-# ============================================================
-# FUNCIÓN PARA CALCULAR DISTANCIA
-# ============================================================
-
-def calcular_distancia(latitud, longitud):
-
-    R = 6371000
-
-    lat1 = radians(LATITUD_CAM)
-    lat2 = radians(latitud)
-
-    diferencia_latitud = radians(
-        latitud - LATITUD_CAM
+        </script>
+        """,
+        height=0
     )
 
-    diferencia_longitud = radians(
-        longitud - LONGITUD_CAM
-    )
-
-    a = (
-        sin(diferencia_latitud / 2) ** 2
-        +
-        cos(lat1)
-        * cos(lat2)
-        * sin(diferencia_longitud / 2) ** 2
-    )
-
-    c = 2 * atan2(
-        sqrt(a),
-        sqrt(1 - a)
-    )
-
-    return R * c
+    return componente
 
 
 # ============================================================
-# PANTALLA 1
-# SELECCIONAR CULTIVO
+# COMUNICACIÓN CON APPS SCRIPT
 # ============================================================
 
-if st.session_state.cultivo_seleccionado is None:
+def enviar_apps_script(datos):
 
-    st.subheader("🌱 Seleccione su cultivo")
+    try:
 
-    st.markdown("---")
+        respuesta = requests.post(
+            APPS_SCRIPT_URL,
+            json=datos,
+            timeout=30
+        )
 
-    col1, col2 = st.columns(2)
+        respuesta.raise_for_status()
 
-    for i, cultivo in enumerate(cultivos):
+        return respuesta.json()
 
-        if i % 2 == 0:
+    except Exception as e:
 
-            with col1:
-
-                if st.button(
-                    cultivo,
-                    use_container_width=True,
-                    key=f"cultivo_{i}"
-                ):
-
-                    st.session_state.cultivo_seleccionado = cultivo
-
-                    st.rerun()
-
-        else:
-
-            with col2:
-
-                if st.button(
-                    cultivo,
-                    use_container_width=True,
-                    key=f"cultivo_{i}"
-                ):
-
-                    st.session_state.cultivo_seleccionado = cultivo
-
-                    st.rerun()
+        return {
+            "ok": False,
+            "mensaje": str(e)
+        }
 
 
 # ============================================================
-# PANTALLA 2
-# SELECCIONAR ESTUDIANTE
+# INICIO
 # ============================================================
 
-elif st.session_state.estudiante_seleccionado is None:
+st.title("📋 Registro de asistencia")
 
-    cultivo = st.session_state.cultivo_seleccionado
 
-    st.subheader(
-        f"{cultivo}"
+# ============================================================
+# AUTENTICACIÓN GOOGLE
+# ============================================================
+
+if not st.user.is_logged_in:
+
+    st.info(
+        "Inicie sesión con su correo institucional "
+        "para registrar su asistencia."
     )
-
-    st.write(
-        "Seleccione su nombre."
-    )
-
-    st.markdown("---")
-
-    estudiantes = estudiantes_por_cultivo[cultivo]
-
-    for i, estudiante in enumerate(estudiantes):
-
-        if st.button(
-            estudiante,
-            use_container_width=True,
-            key=f"estudiante_{i}"
-        ):
-
-            st.session_state.estudiante_seleccionado = estudiante
-
-            st.rerun()
-
-
-    st.markdown("---")
 
     if st.button(
-        "⬅️ Cambiar de cultivo",
+        "🔐 Iniciar sesión con Google",
         use_container_width=True
     ):
 
-        st.session_state.cultivo_seleccionado = None
+        st.login("google")
+
+    st.stop()
+
+
+# ============================================================
+# DATOS DE GOOGLE
+# ============================================================
+
+correo = st.user.email.lower().strip()
+
+nombre_google = st.user.name
+
+sub_google = st.user.sub
+
+
+# ============================================================
+# VALIDAR DOMINIO
+# ============================================================
+
+if not correo.endswith("@unal.edu.co"):
+
+    st.error(
+        "❌ Debe utilizar un correo institucional "
+        "@unal.edu.co."
+    )
+
+    if st.button("Cerrar sesión"):
+
+        st.logout()
+
+    st.stop()
+
+
+# ============================================================
+# DEVICE ID
+# ============================================================
+
+device_id = obtener_device_id()
+
+
+# ============================================================
+# CONSULTAR ESTUDIANTE
+# ============================================================
+
+if "estudiante" not in st.session_state:
+
+    with st.spinner(
+        "Verificando estudiante..."
+    ):
+
+        resultado = enviar_apps_script({
+
+            "accion":
+                "consultar_estudiante",
+
+            "correo":
+                correo
+
+        })
+
+
+    if not resultado.get("ok"):
+
+        st.error(
+            resultado.get(
+                "mensaje",
+                "Error consultando estudiante."
+            )
+        )
+
+        st.stop()
+
+
+    if not resultado.get("encontrado"):
+
+        st.error(
+            "❌ Su correo institucional "
+            "no aparece en la lista de estudiantes."
+        )
+
+        st.write(
+            f"Correo detectado: {correo}"
+        )
+
+        if st.button("Cerrar sesión"):
+
+            st.logout()
+
+        st.stop()
+
+
+    st.session_state.estudiante = {
+
+        "nombre":
+            resultado.get(
+                "nombre"
+            ),
+
+        "cultivo":
+            resultado.get(
+                "cultivo"
+            )
+
+    }
+
+
+# ============================================================
+# DATOS DEL ESTUDIANTE
+# ============================================================
+
+estudiante = (
+    st.session_state.estudiante
+)
+
+nombre = estudiante["nombre"]
+
+cultivo = estudiante["cultivo"]
+
+
+# ============================================================
+# BIENVENIDA
+# ============================================================
+
+st.success(
+    f"👋 Bienvenido, {nombre}"
+)
+
+st.write(
+    f"🌱 Cultivo: **{cultivo}**"
+)
+
+st.write(
+    f"📧 Correo: **{correo}**"
+)
+
+
+# ============================================================
+# CONSULTAR BLOQUEO
+# ============================================================
+
+if "bloqueo" not in st.session_state:
+
+    with st.spinner(
+        "Verificando disponibilidad..."
+    ):
+
+        bloqueo = enviar_apps_script({
+
+            "accion":
+                "consultar_bloqueo",
+
+            "device_id":
+                device_id
+
+        })
+
+
+    st.session_state.bloqueo = bloqueo
+
+
+bloqueo = st.session_state.bloqueo
+
+
+# ============================================================
+# DISPOSITIVO BLOQUEADO
+# ============================================================
+
+if bloqueo.get("bloqueado"):
+
+    st.warning(
+        "🔒 Este dispositivo está temporalmente "
+        "bloqueado para registrar asistencia."
+    )
+
+    if bloqueo.get("bloqueo_hasta"):
+
+        st.info(
+            "Puede volver a registrar asistencia después de:"
+        )
+
+        st.write(
+            bloqueo.get(
+                "bloqueo_hasta"
+            )
+        )
+
+    st.stop()
+
+
+# ============================================================
+# REGISTRO
+# ============================================================
+
+st.markdown("---")
+
+st.subheader(
+    "Registrar asistencia"
+)
+
+
+# ============================================================
+# FUNCIÓN REGISTRO
+# ============================================================
+
+def registrar(tipo):
+
+    with st.spinner(
+        "Registrando..."
+    ):
+
+        resultado = enviar_apps_script({
+
+            "accion":
+                "registrar_asistencia",
+
+            "correo":
+                correo,
+
+            "nombre":
+                nombre,
+
+            "cultivo":
+                cultivo,
+
+            "sub":
+                sub_google,
+
+            "device_id":
+                device_id,
+
+            "tipo":
+                tipo
+
+        })
+
+
+    if resultado.get("ok"):
+
+        st.success(
+            "✅ Registro realizado correctamente."
+        )
+
+        if resultado.get(
+            "bloqueo_hasta"
+        ):
+
+            st.info(
+                "🔒 El dispositivo queda bloqueado "
+                "hasta:"
+            )
+
+            st.write(
+                resultado[
+                    "bloqueo_hasta"
+                ]
+            )
+
+        st.session_state.bloqueo = {
+
+            "bloqueado":
+                True,
+
+            "bloqueo_hasta":
+                resultado.get(
+                    "bloqueo_hasta"
+                )
+
+        }
+
+        time.sleep(2)
 
         st.rerun()
 
-
-# ============================================================
-# PANTALLA 3
-# ESTUDIANTE
-# ============================================================
-
-else:
-
-    cultivo = st.session_state.cultivo_seleccionado
-
-    estudiante = st.session_state.estudiante_seleccionado
-
-
-    st.subheader(
-        f"👤 {estudiante}"
-    )
-
-    st.write(
-        f"🌱 Cultivo: {cultivo}"
-    )
-
-    st.markdown("---")
-
-
-    # ========================================================
-    # BOTONES ENTRADA / SALIDA
-    # ========================================================
-
-    if not st.session_state.solicitar_gps:
-
-        st.write(
-            "Seleccione la acción que desea registrar:"
-        )
-
-        col1, col2 = st.columns(2)
-
-
-        # ----------------------------------------------------
-        # ENTRADA
-        # ----------------------------------------------------
-
-        with col1:
-
-            if st.button(
-                "🟢 ENTRAR",
-                use_container_width=True
-            ):
-
-                st.session_state.accion = "Entrada"
-
-                st.session_state.solicitar_gps = True
-
-                st.rerun()
-
-
-        # ----------------------------------------------------
-        # SALIDA
-        # ----------------------------------------------------
-
-        with col2:
-
-            if st.button(
-                "🔴 SALIR",
-                use_container_width=True
-            ):
-
-                st.session_state.accion = "Salida"
-
-                st.session_state.solicitar_gps = True
-
-                st.rerun()
-
-
-    # ========================================================
-    # SOLICITAR GPS
-    # ========================================================
 
     else:
 
-        accion = st.session_state.accion
-
-
-        if accion == "Entrada":
-
-            st.subheader(
-                "🟢 Registrando entrada"
+        st.error(
+            resultado.get(
+                "mensaje",
+                "No fue posible registrar."
             )
-
-        else:
-
-            st.subheader(
-                "🔴 Registrando salida"
-            )
-
-
-        st.info(
-            "📍 Obteniendo ubicación..."
         )
 
 
-        # ====================================================
-        # JAVASCRIPT PARA OBTENER GPS
-        # ====================================================
+# ============================================================
+# BOTONES
+# ============================================================
 
-        ubicacion = streamlit_js_eval(
-            js_expressions="""
-            new Promise((resolve, reject) => {
+col1, col2 = st.columns(2)
 
-                navigator.geolocation.getCurrentPosition(
 
-                    position => {
-
-                        resolve({
-
-                            latitude:
-                            position.coords.latitude,
-
-                            longitude:
-                            position.coords.longitude,
-
-                            accuracy:
-                            position.coords.accuracy
-
-                        });
-
-                    },
-
-                    error => {
-
-                        resolve({
-
-                            error:
-                            error.message
-
-                        });
-
-                    },
-
-                    {
-
-                        enableHighAccuracy: true,
-
-                        timeout: 10000,
-
-                        maximumAge: 0
-
-                    }
-
-                );
-
-            })
-            """,
-
-            key="obtener_gps"
-        )
-
-
-        # ====================================================
-        # PROCESAR GPS
-        # ====================================================
-
-        if ubicacion is not None:
-
-
-            # ------------------------------------------------
-            # ERROR GPS
-            # ------------------------------------------------
-
-            if "error" in ubicacion:
-
-                st.error(
-                    "❌ No fue posible obtener su ubicación."
-                )
-
-                st.write(
-                    ubicacion["error"]
-                )
-
-
-            # ------------------------------------------------
-            # GPS CORRECTO
-            # ------------------------------------------------
-
-            else:
-
-                latitud = ubicacion["latitude"]
-
-                longitud = ubicacion["longitude"]
-
-                precision = ubicacion["accuracy"]
-
-
-                # --------------------------------------------
-                # CALCULAR DISTANCIA
-                # --------------------------------------------
-
-                distancia = calcular_distancia(
-                    latitud,
-                    longitud
-                )
-
-
-                st.metric(
-                    "Distancia al CAM",
-                    f"{distancia:.1f} metros"
-                )
-
-
-                st.write(
-                    f"Precisión GPS: "
-                    f"{precision:.1f} metros"
-                )
-
-
-                # ============================================
-                # UBICACIÓN AUTORIZADA
-                # ============================================
-
-                if distancia <= RADIO_PERMITIDO:
-
-
-                    fecha_hora = datetime.now()
-
-
-                    st.success(
-                        "🟢 Ubicación autorizada"
-                    )
-
-
-                    st.success(
-                        f"✅ {accion} registrada correctamente"
-                    )
-
-
-                    st.write(
-                        f"👤 **Estudiante:** "
-                        f"{estudiante}"
-                    )
-
-
-                    st.write(
-                        f"🌱 **Cultivo:** "
-                        f"{cultivo}"
-                    )
-
-
-                    st.write(
-                        f"📅 **Fecha:** "
-                        f"{fecha_hora.strftime('%d/%m/%Y')}"
-                    )
-
-
-                    st.write(
-                        f"⏰ **Hora:** "
-                        f"{fecha_hora.strftime('%H:%M:%S')}"
-                    )
-
-
-                # ============================================
-                # UBICACIÓN NO AUTORIZADA
-                # ============================================
-
-                else:
-
-
-                    st.error(
-                        "🔴 Ubicación no autorizada"
-                    )
-
-
-                    st.write(
-                        f"Se encuentra a "
-                        f"**{distancia:.1f} metros** "
-                        f"del CAM."
-                    )
-
-
-                    st.write(
-                        f"El máximo permitido es "
-                        f"**{RADIO_PERMITIDO} metros**."
-                    )
-
-
-    # ========================================================
-    # VOLVER
-    # ========================================================
-
-    st.markdown("---")
-
+with col1:
 
     if st.button(
-        "⬅️ Volver a lista de estudiantes",
+        "🟢 ENTRAR",
+        use_container_width=True,
+        type="primary"
+    ):
+
+        registrar(
+            "ENTRADA"
+        )
+
+
+with col2:
+
+    if st.button(
+        "🔴 SALIR",
         use_container_width=True
     ):
 
-        st.session_state.estudiante_seleccionado = None
+        registrar(
+            "SALIDA"
+        )
 
-        st.session_state.accion = None
 
-        st.session_state.solicitar_gps = False
+# ============================================================
+# CERRAR SESIÓN
+# ============================================================
 
-        st.rerun()
+st.markdown("---")
+
+if st.button(
+    "Cerrar sesión",
+    use_container_width=True
+):
+
+    st.session_state.clear()
+
+    st.logout()
