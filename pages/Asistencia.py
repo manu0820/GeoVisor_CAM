@@ -111,6 +111,52 @@ def guardar_registro(estudiante, cultivo, accion, distancia, device_id, fecha_ho
 
 
 # ============================================================
+# PANEL DE ADMINISTRADOR (descargar Excel)
+# ============================================================
+
+CLAVE_ADMIN = "1"  # <-- cámbiala por tu propia clave
+
+with st.sidebar:
+
+    st.subheader("🔒 Panel administrador")
+
+    clave_ingresada = st.text_input(
+        "Clave de acceso",
+        type="password"
+    )
+
+    if clave_ingresada == CLAVE_ADMIN:
+
+        inicializar_excel()
+
+        if os.path.exists(ARCHIVO_EXCEL):
+
+            with open(ARCHIVO_EXCEL, "rb") as f:
+
+                st.download_button(
+                    label="⬇️ Descargar asistencia.xlsx",
+                    data=f,
+                    file_name="asistencia.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+            wb_admin = load_workbook(ARCHIVO_EXCEL)
+            ws_admin = wb_admin.active
+
+            total_registros = ws_admin.max_row - 1
+
+            st.write(f"Total de registros guardados: **{total_registros}**")
+
+        else:
+
+            st.info("Aún no hay registros guardados.")
+
+    elif clave_ingresada != "":
+
+        st.error("Clave incorrecta")
+
+
+# ============================================================
 # TÍTULO
 # ============================================================
 
