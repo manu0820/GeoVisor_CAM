@@ -8,3 +8,4 @@ shapely==2.1.2
 streamlit-geolocation
 streamlit-js-eval
 streamlit[auth]
+httpx
