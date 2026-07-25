@@ -6,6 +6,10 @@ from math import radians, sin, cos, sqrt, atan2
 
 from datetime import datetime
 
+import os
+
+from openpyxl import Workbook, load_workbook
+
 
 # ============================================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -27,6 +31,83 @@ LONGITUD_CAM = -74.216075
 
 # Radio máximo permitido
 RADIO_PERMITIDO = 100  # metros
+
+
+# ============================================================
+# CONFIGURACIÓN DEL EXCEL
+# ============================================================
+
+ARCHIVO_EXCEL = "asistencia.xlsx"
+
+
+def inicializar_excel():
+    """Crea el archivo Excel con encabezados si aún no existe."""
+
+    if not os.path.exists(ARCHIVO_EXCEL):
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Asistencia"
+
+        ws.append([
+            "Fecha",
+            "Hora",
+            "Estudiante",
+            "Cultivo",
+            "Accion",
+            "Distancia (m)",
+            "Device ID"
+        ])
+
+        wb.save(ARCHIVO_EXCEL)
+
+
+def dispositivo_ya_registro(device_id, fecha, accion):
+    """Revisa si este dispositivo ya registró esta acción en la fecha dada."""
+
+    if not device_id:
+        return False
+
+    inicializar_excel()
+
+    wb = load_workbook(ARCHIVO_EXCEL)
+    ws = wb.active
+
+    for fila in ws.iter_rows(min_row=2, values_only=True):
+
+        fila_fecha = fila[0]
+        fila_accion = fila[4]
+        fila_device = fila[6]
+
+        if (
+            fila_device == device_id
+            and fila_fecha == fecha
+            and fila_accion == accion
+        ):
+            return True
+
+    return False
+
+
+def guardar_registro(estudiante, cultivo, accion, distancia, device_id, fecha_hora):
+    """Agrega una fila nueva al Excel con el registro de asistencia."""
+
+    inicializar_excel()
+
+    wb = load_workbook(ARCHIVO_EXCEL)
+    ws = wb.active
+
+    ws.append([
+        fecha_hora.strftime("%d/%m/%Y"),
+        fecha_hora.strftime("%H:%M:%S"),
+        estudiante,
+        cultivo,
+        accion,
+        round(distancia, 1),
+        device_id
+    ])
+
+    wb.save(ARCHIVO_EXCEL)
 
 
 # ============================================================
@@ -176,6 +257,9 @@ if "accion" not in st.session_state:
 if "solicitar_gps" not in st.session_state:
     st.session_state.solicitar_gps = False
 
+if "device_id" not in st.session_state:
+    st.session_state.device_id = None
+
 
 # ============================================================
 # FUNCIÓN PARA CALCULAR DISTANCIA
@@ -210,6 +294,29 @@ def calcular_distancia(latitud, longitud):
     )
 
     return R * c
+
+
+# ============================================================
+# OBTENER ID DE DISPOSITIVO (persistente en localStorage)
+# ============================================================
+
+device_id_actual = streamlit_js_eval(
+    js_expressions="""
+    (function() {
+        let id = localStorage.getItem('asistencia_device_id');
+        if (!id) {
+            id = 'dev-' + Date.now() + '-' +
+                 Math.random().toString(36).substring(2, 12);
+            localStorage.setItem('asistencia_device_id', id);
+        }
+        return id;
+    })()
+    """,
+    key="device_id_eval"
+)
+
+if device_id_actual:
+    st.session_state.device_id = device_id_actual
 
 
 # ============================================================
@@ -335,6 +442,16 @@ else:
             "Seleccione la acción que desea registrar:"
         )
 
+        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+
+        entrada_hecha = dispositivo_ya_registro(
+            st.session_state.device_id, fecha_hoy, "Entrada"
+        )
+
+        salida_hecha = dispositivo_ya_registro(
+            st.session_state.device_id, fecha_hoy, "Salida"
+        )
+
         col1, col2 = st.columns(2)
 
 
@@ -344,16 +461,30 @@ else:
 
         with col1:
 
-            if st.button(
-                "🟢 ENTRAR",
-                use_container_width=True
-            ):
+            if entrada_hecha:
 
-                st.session_state.accion = "Entrada"
+                st.button(
+                    "🟢 ENTRAR",
+                    use_container_width=True,
+                    disabled=True
+                )
 
-                st.session_state.solicitar_gps = True
+                st.caption(
+                    "✅ Este dispositivo ya registró entrada hoy"
+                )
 
-                st.rerun()
+            else:
+
+                if st.button(
+                    "🟢 ENTRAR",
+                    use_container_width=True
+                ):
+
+                    st.session_state.accion = "Entrada"
+
+                    st.session_state.solicitar_gps = True
+
+                    st.rerun()
 
 
         # ----------------------------------------------------
@@ -362,16 +493,30 @@ else:
 
         with col2:
 
-            if st.button(
-                "🔴 SALIR",
-                use_container_width=True
-            ):
+            if salida_hecha:
 
-                st.session_state.accion = "Salida"
+                st.button(
+                    "🔴 SALIR",
+                    use_container_width=True,
+                    disabled=True
+                )
 
-                st.session_state.solicitar_gps = True
+                st.caption(
+                    "✅ Este dispositivo ya registró salida hoy"
+                )
 
-                st.rerun()
+            else:
+
+                if st.button(
+                    "🔴 SALIR",
+                    use_container_width=True
+                ):
+
+                    st.session_state.accion = "Salida"
+
+                    st.session_state.solicitar_gps = True
+
+                    st.rerun()
 
 
     # ========================================================
@@ -524,39 +669,68 @@ else:
 
                     fecha_hora = datetime.now()
 
+                    fecha_hoy = fecha_hora.strftime("%d/%m/%Y")
 
-                    st.success(
-                        "🟢 Ubicación autorizada"
-                    )
-
-
-                    st.success(
-                        f"✅ {accion} registrada correctamente"
-                    )
+                    device_id = st.session_state.device_id
 
 
-                    st.write(
-                        f"👤 **Estudiante:** "
-                        f"{estudiante}"
-                    )
+                    # Revalidación final por si dos pestañas
+                    # del mismo dispositivo intentaron registrar
+                    # al mismo tiempo.
+
+                    if dispositivo_ya_registro(
+                        device_id, fecha_hoy, accion
+                    ):
+
+                        st.error(
+                            f"❌ Este dispositivo ya registró "
+                            f"la {accion.lower()} de hoy."
+                        )
+
+                    else:
+
+                        guardar_registro(
+                            estudiante,
+                            cultivo,
+                            accion,
+                            distancia,
+                            device_id,
+                            fecha_hora
+                        )
 
 
-                    st.write(
-                        f"🌱 **Cultivo:** "
-                        f"{cultivo}"
-                    )
+                        st.success(
+                            "🟢 Ubicación autorizada"
+                        )
 
 
-                    st.write(
-                        f"📅 **Fecha:** "
-                        f"{fecha_hora.strftime('%d/%m/%Y')}"
-                    )
+                        st.success(
+                            f"✅ {accion} registrada correctamente"
+                        )
 
 
-                    st.write(
-                        f"⏰ **Hora:** "
-                        f"{fecha_hora.strftime('%H:%M:%S')}"
-                    )
+                        st.write(
+                            f"👤 **Estudiante:** "
+                            f"{estudiante}"
+                        )
+
+
+                        st.write(
+                            f"🌱 **Cultivo:** "
+                            f"{cultivo}"
+                        )
+
+
+                        st.write(
+                            f"📅 **Fecha:** "
+                            f"{fecha_hora.strftime('%d/%m/%Y')}"
+                        )
+
+
+                        st.write(
+                            f"⏰ **Hora:** "
+                            f"{fecha_hora.strftime('%H:%M:%S')}"
+                        )
 
 
                 # ============================================
