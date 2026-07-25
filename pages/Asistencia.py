@@ -26,8 +26,8 @@ st.set_page_config(
 # CONFIGURACIÓN DEL CAM
 # ============================================================
 
-LATITUD_CAM = 4.681785
-LONGITUD_CAM = -74.216075
+LATITUD_CAM = 4.7556 #4.681785
+LONGITUD_CAM = -74.0237 #-74.216075
 
 # Radio máximo permitido
 RADIO_PERMITIDO = 100  # metros
