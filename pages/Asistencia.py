@@ -34,11 +34,11 @@ st.set_page_config(
 # CONFIGURACIÓN DEL CAM
 # ============================================================
 
-LATITUD_CAM =  4.7556 #4.681785
-LONGITUD_CAM = -74.0237 #-74.216075
+LATITUD_CAM = 4.681785 #4.7556 
+LONGITUD_CAM = -74.216075 #-74.0237 
 
 # Radio máximo permitido
-RADIO_PERMITIDO = 100  # metros
+RADIO_PERMITIDO = 500  # metros
 
 
 # ============================================================
@@ -437,7 +437,7 @@ def limpiar_hojas_obsoletas(wb):
             del wb[nombre_hoja]
 
 
-CLAVE_ADMIN = "cambia_esta_clave"  # <-- cámbiala por tu propia clave
+CLAVE_ADMIN = "123"  # <-- clave administrador
 
 with st.sidebar:
 
