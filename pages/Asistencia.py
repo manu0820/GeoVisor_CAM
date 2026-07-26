@@ -641,7 +641,7 @@ estudiantes_por_cultivo = {
         "Ana Gabriela Rojas Gonzáles",
         "Emma Natalia Muñoz Jiménez",
         "Yuliana Henao Campuzano",
-        "Jesus DAvid Manzano",
+        "Jesus David Manzano",
         "Daniel Alberto Robles Sanchez",
         "Brayan Hair Recaman Montaño"
     ],
