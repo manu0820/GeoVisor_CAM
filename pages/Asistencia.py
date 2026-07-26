@@ -582,7 +582,7 @@ st.title("📋 Asistencia Ciclo II 2026B")
 
 
 st.write(
-    "Seleccione su cultivo y registre su asistencia."
+    "Querid@ estudiante de Ciclo II, seleccione su cultivo y registre su asistencia."
 )
 
 
