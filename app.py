@@ -13,7 +13,7 @@ ocultar_sidebar()
 st.title("🌱CAM🌱")
 
 st.write("""
-Querid@ estudiante de Ciclo II, bienvenido al Centro Agropecuario Marengo.
+Bienvenid@ al Centro Agropecuario Marengo.
 
 Seleccione un módulo.
 """)
