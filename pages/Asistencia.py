@@ -18,6 +18,8 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+import drive_backup
+
 
 # ============================================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -60,6 +62,19 @@ def ahora_bogota():
 # ============================================================
 
 ARCHIVO_EXCEL = "asistencia.xlsx"
+
+# ------------------------------------------------------------
+# SINCRONIZACIÓN CON GOOGLE DRIVE
+# ------------------------------------------------------------
+# Streamlit Community Cloud borra el disco local cada vez que el
+# contenedor se reinicia (por inactividad, por un nuevo deploy, o
+# por mantenimiento). Por eso, ANTES de tocar el archivo local,
+# traemos siempre la copia más reciente que exista en Drive.
+# Esto corre una sola vez por cada ejecución del script (Streamlit
+# vuelve a correr todo el archivo en cada clic), así que no golpea
+# la API de Drive más de lo necesario.
+
+drive_backup.descargar_desde_drive(ARCHIVO_EXCEL)
 
 # weekday(): lunes=0, martes=1, miércoles=2, jueves=3, viernes=4, sábado=5, domingo=6
 DIAS_HORARIO = {1, 4}   # martes y viernes
@@ -108,6 +123,8 @@ def inicializar_excel():
 
         wb.save(ARCHIVO_EXCEL)
 
+        drive_backup.subir_a_drive(ARCHIVO_EXCEL)
+
         return
 
     # El archivo ya existe: revisar que tenga las 3 hojas requeridas
@@ -143,6 +160,7 @@ def inicializar_excel():
 
     if modificado:
         wb.save(ARCHIVO_EXCEL)
+        drive_backup.subir_a_drive(ARCHIVO_EXCEL)
 
 
 def obtener_fila_de_hoy(ws_reg, nombre, fecha_hoy):
@@ -392,6 +410,8 @@ def guardar_registro(estudiante, cultivo, accion, distancia, device_id, fecha_ho
 
     wb.save(ARCHIVO_EXCEL)
 
+    drive_backup.subir_a_drive(ARCHIVO_EXCEL)
+
 
 def agregar_registro_manual(estudiante, cultivo, fecha, hora_ingreso, hora_salida):
     """Agrega directamente una fila a Registros. Se usa para cargar
@@ -417,6 +437,8 @@ def agregar_registro_manual(estudiante, cultivo, fecha, hora_ingreso, hora_salid
     recalcular_calendario(wb)
 
     wb.save(ARCHIVO_EXCEL)
+
+    drive_backup.subir_a_drive(ARCHIVO_EXCEL)
 
 
 # ============================================================
@@ -462,6 +484,8 @@ with st.sidebar:
         recalcular_calendario(wb_admin)
 
         wb_admin.save(ARCHIVO_EXCEL)
+
+        drive_backup.subir_a_drive(ARCHIVO_EXCEL)
 
         with open(ARCHIVO_EXCEL, "rb") as f:
 
