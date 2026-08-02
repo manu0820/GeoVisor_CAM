@@ -748,6 +748,9 @@ if "solicitar_gps" not in st.session_state:
 if "device_id" not in st.session_state:
     st.session_state.device_id = None
 
+if "intento_gps" not in st.session_state:
+    st.session_state.intento_gps = 0
+
 
 # ============================================================
 # FUNCIÓN PARA CALCULAR DISTANCIA
@@ -976,6 +979,8 @@ else:
 
                     st.session_state.solicitar_gps = True
 
+                    st.session_state.intento_gps = 0
+
                     st.rerun()
 
 
@@ -1034,6 +1039,8 @@ else:
 
                     st.session_state.solicitar_gps = True
 
+                    st.session_state.intento_gps = 0
+
                     st.rerun()
 
 
@@ -1059,65 +1066,110 @@ else:
             )
 
 
+        # ====================================================
+        # AVISO: NAVEGADORES INTERNOS DE WHATSAPP/INSTAGRAM/ETC
+        # ====================================================
+        # Estos navegadores integrados suelen bloquear el acceso
+        # al GPS sin ningún aviso claro para el usuario. Es una
+        # causa muy común de "no puedo obtener mi ubicación" y no
+        # tiene arreglo técnico: hay que abrir el enlace en un
+        # navegador real (Chrome, Safari).
+
+        navegador_no_confiable = streamlit_js_eval(
+            js_expressions="""
+            (function() {
+                const ua = navigator.userAgent || "";
+                const patrones = [
+                    "FBAN", "FBAV", "Instagram", "Line/",
+                    "MicroMessenger", "Twitter"
+                ];
+                return patrones.some(p => ua.includes(p));
+            })()
+            """,
+            key="detectar_navegador_app"
+        )
+
+        if navegador_no_confiable:
+
+            st.warning(
+                "⚠️ Parece que abriste este enlace desde WhatsApp, "
+                "Instagram u otra app similar. Estos navegadores "
+                "internos suelen bloquear el GPS. Si la ubicación "
+                "falla, toca los 3 puntos y elige 'Abrir en el "
+                "navegador' (Chrome o Safari)."
+            )
+
         st.info(
             "📍 Obteniendo ubicación..."
         )
 
 
         # ====================================================
-        # JAVASCRIPT PARA OBTENER GPS
+        # JAVASCRIPT PARA OBTENER GPS (con reintento automático)
         # ====================================================
+        # Primer intento: alta precisión, rápido. Si falla por
+        # cualquier motivo distinto a permiso denegado, se reintenta
+        # una vez más con baja precisión y más tiempo de espera —
+        # esto ayuda mucho en celulares con señal GPS débil o lenta
+        # para conseguir la primera lectura.
 
         ubicacion = streamlit_js_eval(
             js_expressions="""
-            new Promise((resolve, reject) => {
+            new Promise((resolve) => {
 
-                navigator.geolocation.getCurrentPosition(
+                function intentar(opciones, esUltimoIntento) {
 
-                    position => {
+                    navigator.geolocation.getCurrentPosition(
 
-                        resolve({
+                        position => {
 
-                            latitude:
-                            position.coords.latitude,
+                            resolve({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy
+                            });
 
-                            longitude:
-                            position.coords.longitude,
+                        },
 
-                            accuracy:
-                            position.coords.accuracy
+                        error => {
 
-                        });
+                            if (!esUltimoIntento && error.code !== 1) {
 
-                    },
+                                intentar(
+                                    {
+                                        enableHighAccuracy: false,
+                                        timeout: 20000,
+                                        maximumAge: 60000
+                                    },
+                                    true
+                                );
 
-                    error => {
+                            } else {
 
-                        resolve({
+                                resolve({
+                                    error: error.message,
+                                    code: error.code
+                                });
 
-                            error:
-                            error.message
+                            }
 
-                        });
+                        },
 
-                    },
+                        opciones
 
-                    {
+                    );
 
-                        enableHighAccuracy: true,
+                }
 
-                        timeout: 10000,
-
-                        maximumAge: 0
-
-                    }
-
+                intentar(
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+                    false
                 );
 
             })
             """,
 
-            key="obtener_gps"
+            key=f"obtener_gps_{st.session_state.intento_gps}"
         )
 
 
@@ -1134,13 +1186,46 @@ else:
 
             if "error" in ubicacion:
 
+                codigo = ubicacion.get("code")
+
                 st.error(
                     "❌ No fue posible obtener su ubicación."
                 )
 
-                st.write(
-                    ubicacion["error"]
-                )
+                if codigo == 1:
+                    st.write(
+                        "El navegador no tiene permiso para usar el GPS. "
+                        "Ve a la configuración del navegador (o del sitio, "
+                        "tocando el ícono de candado/información junto a "
+                        "la dirección) y habilita el permiso de "
+                        "**Ubicación**, luego intenta de nuevo."
+                    )
+                elif codigo == 2:
+                    st.write(
+                        "El dispositivo no pudo determinar su posición. "
+                        "Verifica que la **Ubicación/GPS esté activada** "
+                        "en el celular (no solo el permiso del navegador) "
+                        "y que no esté en modo avión."
+                    )
+                elif codigo == 3:
+                    st.write(
+                        "La búsqueda de ubicación tardó demasiado. Sal a "
+                        "un lugar más abierto (lejos de techos o paredes "
+                        "gruesas) e intenta de nuevo."
+                    )
+                else:
+                    st.write(
+                        ubicacion["error"]
+                    )
+
+                if st.button(
+                    "🔄 Intentar de nuevo",
+                    use_container_width=True
+                ):
+
+                    st.session_state.intento_gps += 1
+
+                    st.rerun()
 
 
             # ------------------------------------------------
@@ -1312,5 +1397,7 @@ else:
         st.session_state.accion = None
 
         st.session_state.solicitar_gps = False
+
+        st.session_state.intento_gps = 0
 
         st.rerun()
